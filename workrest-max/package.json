@@ -1,0 +1,65 @@
+{
+  "name": "workrest-max",
+  "version": "1.5.0",
+  "description": "久坐提醒与工作/休息管理应用",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "work",
+    "rest",
+    "timer",
+    "health",
+    "productivity"
+  ],
+  "author": "WorkRest",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "animejs": "^3.2.2"
+  },
+  "build": {
+    "appId": "com.workrest.max",
+    "productName": "WorkRest Max",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": "x64"
+        }
+      ],
+      "category": "Utility",
+      "icon": "assets/clock.png",
+      "maintainer": "WorkRest Team",
+      "vendor": "WorkRest",
+      "synopsis": "久坐提醒与工作休息管理",
+      "description": "WorkRest 是一个帮助用户管理工作和休息时间，预防久坐健康问题的桌面应用",
+      "desktop": {
+        "Name": "WorkRest",
+        "Comment": "久坐提醒与工作/休息管理应用",
+        "Categories": "Utility;Productivity;",
+        "Icon": "workrest",
+        "StartupWMClass": "workrest"
+      }
+    }
+  }
+}
