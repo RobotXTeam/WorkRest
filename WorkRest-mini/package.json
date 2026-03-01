@@ -1,0 +1,66 @@
+{
+  "name": "workrest-mini",
+  "version": "2.0.0",
+  "description": "久坐提醒与工作/休息管理应用 - Mini 紧凑版",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "work",
+    "rest",
+    "timer",
+    "health",
+    "productivity"
+  ],
+  "author": "WorkRest Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "animejs": "^3.2.2"
+  },
+  "build": {
+    "appId": "com.workrest.mini",
+    "productName": "WorkRest Mini",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": "x64"
+        }
+      ],
+      "category": "Utility",
+      "icon": "assets/clock.png",
+      "maintainer": "WorkRest Team <workrest@example.com>",
+      "vendor": "WorkRest",
+      "synopsis": "久坐提醒与工作休息管理 - 紧凑版",
+      "description": "WorkRest Mini 是一个专为 Ubuntu/GNOME 设计的桌面应用程序，帮助用户管理工作和休息时间，预防久坐带来的健康问题。紧凑设计，适合小屏幕使用。",
+      "desktop": {
+        "Name": "WorkRest Mini",
+        "Comment": "久坐提醒与工作/休息管理应用 - 紧凑版",
+        "Categories": "Utility;Productivity;Office;",
+        "Icon": "workrest-mini",
+        "StartupWMClass": "workrest-mini",
+        "StartupNotify": "true"
+      }
+    }
+  }
+}
