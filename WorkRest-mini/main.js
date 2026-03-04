@@ -4,6 +4,9 @@ const fs = require('fs');
 const os = require('os');
 const { exec, spawn } = require('child_process');
 
+// 确保每个版本的用户数据目录独立，防止锁冲突
+app.setPath('userData', path.join(app.getPath('appData'), 'workrest-mini'));
+
 // 单实例锁
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -58,8 +61,8 @@ function logError(message, ...args) { logWrite('ERROR', message, ...args); }
 
 // 应用启动日志
 logInfo('========================================');
-logInfo('WorkRest 应用启动');
-logInfo(`版本: 2.0-mini`);
+logInfo('WorkRest Mini 应用启动');
+logInfo(`版本: 2.0.1`);
 logInfo(`Electron: ${process.versions.electron}`);
 logInfo(`Node.js: ${process.versions.node}`);
 logInfo(`平台: ${process.platform} ${process.arch}`);
@@ -70,7 +73,8 @@ const DEFAULT_SETTINGS = {
   workDuration: 45,      // 工作时长（分钟）
   breakDuration: 15,     // 休息时长（分钟）
   musicDir: '/home/steven/音乐/Music',  // 音乐目录
-  voicePack: 'google-tts-en'  // 语音包: google-tts-en, espeak-zh
+  voicePack: 'edge-tts-xiaoxiao',  // 默认使用晓晓中文语音
+  officeMode: false      // 办公室模式（静音）
 };
 
 // 加载设置
@@ -109,6 +113,7 @@ let mainWindow = null;
 let currentState = State.STOPPED;
 let timerInterval = null;
 let remainingSeconds = 0;
+let totalWorkSeconds = 0; // 新增：跟踪总工作秒数
 let todayStats = {
   date: new Date().toISOString().split('T')[0],
   morning: 0,
@@ -118,8 +123,9 @@ let todayStats = {
 let musicPlayer = null;
 let musicFiles = [];
 let currentMusicIndex = -1;
+let breakEndedAuto = false; // 休息结束自动标志
 
-// 创建主窗口 - v1.3 长条形设计
+// 创建主窗口 - v2.0.1 Mini 设计
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 420,
@@ -132,9 +138,10 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    titleBarStyle: 'hiddenInset',
     show: false,
-    icon: path.join(__dirname, 'assets', 'clock.png')
+    icon: path.join(__dirname, 'assets', 'clock.png'),
+    titleBarStyle: 'hiddenInset',
+    frame: process.platform === 'darwin'
   });
 
   mainWindow.loadFile('index.html');
@@ -240,7 +247,7 @@ function createMenu() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: '关于 WorkRest',
-              message: 'WorkRest v1.5.0',
+              message: 'WorkRest Mini v2.0.1',
               detail: '久坐提醒与工作/休息管理应用\n\n本软件由 RobotX 团队 Steven 开发\n\n商业合作可联系 WeChat: StevenQ-001\n\n© 2026 RobotX Team. All rights reserved.'
             });
           }
@@ -328,25 +335,24 @@ app.on('window-all-closed', () => {
   }
 });
 
-// 扫描音乐文件
 // 检查音乐目录和文件
 function checkMusicAvailable() {
   const musicDir = settings.musicDir || '/home/steven/音乐/Music';
-  
+
   // 检查目录是否存在
   if (!fs.existsSync(musicDir)) {
-    return { available: false, reason: '目录不存在', dir: musicDir };
+    return { available: true, reason: '目录不存在，使用默认音乐', dir: musicDir, useDefault: true };
   }
-  
+
   // 检查是否有音乐文件
   const files = fs.readdirSync(musicDir);
-  const musicFiles = files.filter(f => /\.(mp3|flac|wav|ogg|m4a)$/i.test(f));
-  
-  if (musicFiles.length === 0) {
-    return { available: false, reason: '目录中没有音乐文件', dir: musicDir };
+  const customMusicFiles = files.filter(f => /\.(mp3|flac|wav|ogg|m4a)$/i.test(f));
+
+  if (customMusicFiles.length === 0) {
+    return { available: true, reason: '目录中没有音乐文件，使用默认音乐', dir: musicDir, useDefault: true };
   }
-  
-  return { available: true, count: musicFiles.length, dir: musicDir };
+
+  return { available: true, count: customMusicFiles.length, dir: musicDir };
 }
 
 // 显示音乐目录选择对话框
@@ -414,40 +420,70 @@ function shuffleArray(array) {
   return arr;
 }
 
-// 播放音乐
+// 播放音乐（办公室模式下静音）
 function playMusic() {
-  stopMusic();
-  
-  if (musicFiles.length === 0) return;
+  // 办公室模式下不播放音乐
+  if (settings.officeMode) {
+    logInfo('办公室模式已开启，跳过播放音乐');
+    return;
+  }
 
-  const shuffled = shuffleArray(musicFiles);
-  currentMusicIndex = 0;
-  
-  const playNext = () => {
-    if (currentState !== State.BREAKING || currentMusicIndex >= shuffled.length) {
+  stopMusic();
+
+  let filesToPlay = musicFiles;
+  let useLoop = false;
+
+  // 使用默认音乐作为后备
+  if (musicFiles.length === 0) {
+    const defaultMusic = path.join(__dirname, 'assets', 'nikon.mp3');
+    if (fs.existsSync(defaultMusic)) {
+      filesToPlay = [defaultMusic];
+      useLoop = true;
+    } else {
       return;
     }
-    
+  }
+
+  const shuffled = useLoop ? filesToPlay : shuffleArray(filesToPlay);
+  currentMusicIndex = 0;
+
+  const playNext = () => {
+    if (currentState !== State.BREAKING || currentMusicIndex >= shuffled.length) {
+      if (useLoop && currentState === State.BREAKING) {
+        currentMusicIndex = 0; // 重置索引以循环
+      } else {
+        return;
+      }
+    }
+
     const file = shuffled[currentMusicIndex++];
-    
-    musicPlayer = spawn('mpv', ['--no-video', '--loop-file=no', file], {
+
+    const mpvArgs = ['--no-video'];
+    if (useLoop) {
+        mpvArgs.push('--loop-file=yes');
+    } else {
+        mpvArgs.push('--loop-file=no');
+    }
+    mpvArgs.push(file);
+
+    musicPlayer = spawn('mpv', mpvArgs, {
       detached: false,
       stdio: 'ignore'
     });
-    
+
     musicPlayer.on('close', () => {
-      if (currentState === State.BREAKING && currentMusicIndex < shuffled.length) {
+      if (currentState === State.BREAKING) {
         playNext();
       }
     });
-    
+
     musicPlayer.on('error', () => {
-      if (currentState === State.BREAKING && currentMusicIndex < shuffled.length) {
+      if (currentState === State.BREAKING) {
         playNext();
       }
     });
   };
-  
+
   playNext();
 }
 
@@ -455,6 +491,8 @@ function playMusic() {
 function stopMusic() {
   if (musicPlayer) {
     try {
+      musicPlayer.removeAllListeners('close');
+      musicPlayer.removeAllListeners('error');
       musicPlayer.kill('SIGTERM');
     } catch (e) {}
     musicPlayer = null;
@@ -462,12 +500,27 @@ function stopMusic() {
   exec('pkill -f "mpv --no-video"', () => {});
 }
 
-// TTS
-// TTS 语音播报
+// TTS 语音播报（办公室模式下静音）
 function speak(text) {
-  const voicePack = settings.voicePack || 'espeak-zh';
-  
-  if (voicePack === 'google-tts-en') {
+  // 办公室模式下不播放语音
+  if (settings.officeMode) {
+    logInfo('办公室模式已开启，跳过语音播报');
+    return;
+  }
+
+  const voicePack = settings.voicePack || 'edge-tts-xiaoxiao';
+
+  if (voicePack === 'edge-tts-xiaoxiao') {
+    // Edge TTS - 晓晓中文女声（小爱同学风格）
+    const edgeCmd = `edge-tts --voice zh-CN-XiaoxiaoNeural --text "${text}" --write-media "${path.join(DATA_DIR, 'tts_tmp.mp3')}" && mpv "${path.join(DATA_DIR, 'tts_tmp.mp3')}" --no-video --volume=80`;
+    exec(edgeCmd, (error) => {
+      if (error) {
+        console.log('edge-tts failed, trying fallback');
+        fallbackSpeak(text);
+      }
+      try { fs.unlinkSync(path.join(DATA_DIR, 'tts_tmp.mp3')); } catch(e) {}
+    });
+  } else if (voicePack === 'google-tts-en') {
     // Google Translate TTS - 英文女声（需要网络）
     const texts = {
       '准备休息': 'Time to take a break',
@@ -475,15 +528,15 @@ function speak(text) {
       '测试语音播报': 'Voice test'
     };
     const enText = texts[text] || text;
-    
+
     // 使用 Google Translate TTS API (通过 curl)
     const tmpFile = path.join(DATA_DIR, 'tts_tmp.mp3');
     const downloadCmd = `curl -s -L "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(enText)}" -o "${tmpFile}" 2>/dev/null`;
-    
+
     exec(downloadCmd, (error) => {
       if (!error && fs.existsSync(tmpFile)) {
         // 播放下载的音频
-        exec(`mpv "${tmpFile}" --no-video 2>/dev/null || mpv "${tmpFile}" --no-video`, () => {
+        exec(`mpv "${tmpFile}" --no-video --volume=80 2>/dev/null || mpv "${tmpFile}" --no-video --volume=80`, () => {
           // 播放完成后删除临时文件
           try { fs.unlinkSync(tmpFile); } catch (e) {}
         });
@@ -533,21 +586,24 @@ function saveTodayStats() {
   } catch (e) {}
 }
 
-// 添加工作时间
+// 添加工作时间 - v2.0.1 按开始时刻归属
 function addWorkTime(minutes) {
   const now = new Date();
-  const hour = now.getHours();
+  // 计算实际开始工作的时间点
+  const startTime = new Date(now.getTime() - (minutes * 60000));
+  const hour = startTime.getHours();
   const today = now.toISOString().split('T')[0];
   
   if (todayStats.date !== today) {
     todayStats = { date: today, morning: 0, afternoon: 0, evening: 0 };
   }
   
-  if (hour >= 7 && hour < 12) {
+  // v2.0.1: 时间段边界调整为 09:00-12:00, 12:00-18:00, 18:00-23:00
+  if (hour >= 9 && hour < 12) {
     todayStats.morning += minutes;
   } else if (hour >= 12 && hour < 18) {
     todayStats.afternoon += minutes;
-  } else if (hour >= 18 && hour < 24) {
+  } else if (hour >= 18 && hour < 23) {
     todayStats.evening += minutes;
   }
   
@@ -565,11 +621,42 @@ function formatTime(seconds) {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+// 播放提示音（办公室模式下静音）
+function playDing(count) {
+  // 办公室模式下不播放提示音
+  if (settings.officeMode) {
+    logInfo('办公室模式已开启，跳过提示音');
+    return;
+  }
+
+  const dingPath = path.join(__dirname, 'assets', 'ding.wav');
+  if (fs.existsSync(dingPath)) {
+    // 根据系统选择播放命令
+    const isLinux = process.platform === 'linux';
+    const singleCmd = isLinux ? `paplay "${dingPath}" 2>/dev/null || aplay "${dingPath}" 2>/dev/null || mpv "${dingPath}" --no-video 2>/dev/null` : `afplay "${dingPath}"`;
+    const cmd = Array(count).fill(singleCmd).join(' ; sleep 0.5 ; ');
+
+    exec(cmd, () => {});
+  }
+}
+
 // 计时器 tick
 function timerTick() {
   if (remainingSeconds > 0) {
     remainingSeconds--;
-    
+
+    // 工作时间音效提醒 - v2.0.1 进度提示
+    if (currentState === State.WORKING && totalWorkSeconds > 0) {
+      const twoThirds = Math.floor(totalWorkSeconds * 2 / 3);
+      const oneThird = Math.floor(totalWorkSeconds / 3);
+
+      if (remainingSeconds === twoThirds) {
+        playDing(2); // 剩余 2/3 时间
+      } else if (remainingSeconds === oneThird) {
+        playDing(3); // 剩余 1/3 时间
+      }
+    }
+
     if (mainWindow) {
       mainWindow.webContents.send('timer-update', {
         remaining: remainingSeconds,
@@ -577,7 +664,7 @@ function timerTick() {
         state: currentState
       });
     }
-    
+
     if (remainingSeconds <= 0) {
       onTimerComplete();
     }
@@ -612,7 +699,9 @@ function onTimerComplete() {
       });
     }
   } else if (currentState === State.BREAKING) {
+    // v2.0.1: 休息结束自动停止音乐
     stopMusic();
+    breakEndedAuto = true;
     speak('休息结束，准备开始工作');
     
     // 窗口弹到最前
@@ -639,13 +728,21 @@ function onTimerComplete() {
 // 开始计时
 function startTimer(seconds) {
   remainingSeconds = seconds;
-  
+  if (currentState === State.WORKING) {
+    totalWorkSeconds = seconds;
+  }
+
   if (timerInterval) {
     clearInterval(timerInterval);
   }
-  
+
   timerInterval = setInterval(timerTick, 1000);
-  
+
+  // v2.0.1: 工作开始时播放一声ding
+  if (currentState === State.WORKING) {
+    playDing(1);
+  }
+
   if (mainWindow) {
     mainWindow.webContents.send('timer-update', {
       remaining: remainingSeconds,
@@ -655,7 +752,8 @@ function startTimer(seconds) {
   }
 }
 
-// IPC 处理
+// ============ IPC 处理 ============
+
 ipcMain.handle('get-state', () => {
   return {
     state: currentState,
@@ -705,6 +803,11 @@ ipcMain.handle('start-working', () => {
   
   // 如果之前在休息，停止音乐
   stopMusic();
+  
+  // v2.0.1: 如果是休息结束自动转工作，不播放开始提示音
+  if (breakEndedAuto) {
+    breakEndedAuto = false;
+  }
   
   currentState = State.WORKING;
   startTimer(settings.workDuration * 60);
@@ -786,6 +889,40 @@ ipcMain.handle('get-stats', () => {
 ipcMain.handle('quit-app', () => {
   stopMusic();
   app.quit();
+});
+
+// v2.0.1: 窗口控制（Mini 版本只有最小化和关闭）
+ipcMain.handle('window-control', (event, action) => {
+  if (!mainWindow) return { success: false };
+  
+  switch (action) {
+    case 'minimize':
+      mainWindow.minimize();
+      return { success: true };
+    case 'close':
+      mainWindow.close();
+      return { success: true };
+    default:
+      return { success: false };
+  }
+});
+
+// v2.0.1: 办公室模式切换
+ipcMain.handle('toggle-office-mode', () => {
+  settings.officeMode = !settings.officeMode;
+  saveSettings();
+  
+  // 如果切换到办公室模式，立即停止当前播放的音乐
+  if (settings.officeMode) {
+    stopMusic();
+  }
+  
+  logInfo(`办公室模式已${settings.officeMode ? '开启' : '关闭'}`);
+  return { success: true, officeMode: settings.officeMode };
+});
+
+ipcMain.handle('get-office-mode', () => {
+  return { officeMode: settings.officeMode || false };
 });
 
 ipcMain.handle('dialog-response', (event, buttonIndex) => {

@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 退出应用
   quitApp: () => ipcRenderer.invoke('quit-app'),
   
+  // v2.0.1: 窗口控制
+  windowControl: (action) => ipcRenderer.invoke('window-control', action),
+  
+  // v2.0.1: 办公室模式
+  toggleOfficeMode: () => ipcRenderer.invoke('toggle-office-mode'),
+  getOfficeMode: () => ipcRenderer.invoke('get-office-mode'),
+  
   // 事件监听
   onTimerUpdate: (callback) => {
     ipcRenderer.on('timer-update', (event, data) => callback(data));

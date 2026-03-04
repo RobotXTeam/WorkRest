@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WorkRest</title>
+  <title>WorkRest Mini</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,6 +15,37 @@
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
         <div class="shape shape-3"></div>
+      </div>
+      
+      <!-- v2.0.1: 标题栏 -->
+      <div class="title-bar">
+        <div class="title-bar-left">
+          <!-- v2.0.1: 办公室模式按钮 -->
+          <button id="btn-office-mode" class="btn-office-mode" title="办公室模式（静音）">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <span>静音</span>
+          </button>
+        </div>
+        <div class="title-bar-center">
+          <span class="app-title">WorkRest Mini</span>
+        </div>
+        <div class="title-bar-right">
+          <!-- v2.0.1: 窗口控制按钮 -->
+          <button id="btn-minimize" class="btn-window-control" title="最小化">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button id="btn-close" class="btn-window-control btn-close" title="关闭">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <div class="content">
@@ -99,7 +130,7 @@
       </div>
     </div>
     
-    <!-- 统计页面 -->
+    <!-- 统计页面 - v2.0.1 -->
     <div id="visualize-page" class="page">
       <div class="background-gradient"></div>
       
@@ -134,30 +165,35 @@
                 <div class="t-segment afternoon-seg" id="bar-afternoon"></div>
                 <div class="t-segment evening-seg" id="bar-evening"></div>
               </div>
+              <!-- v2.0.1: 目标线 -->
+              <div class="goal-lines-mini">
+                <div class="goal-line-mini morning-line" style="left: 37.5%"></div>
+                <div class="goal-line-mini afternoon-line" style="left: 87.5%"></div>
+              </div>
               <div class="timeline-labels">
-                <span class="t-label"><span class="dot morning-dot"></span>早上 7-12点</span>
+                <span class="t-label"><span class="dot morning-dot"></span>早上 09-12点</span>
                 <span class="t-label"><span class="dot afternoon-dot"></span>下午 12-18点</span>
-                <span class="t-label"><span class="dot evening-dot"></span>晚上 18-24点</span>
+                <span class="t-label"><span class="dot evening-dot"></span>晚上 18-23点</span>
               </div>
             </div>
           </div>
           
           <div class="detail-cards">
-            <div class="detail-card">
+            <div class="detail-card stat-item-mini">
               <div class="detail-header">
                 <span class="detail-name">早上</span>
                 <span class="detail-target">目标 3小时</span>
               </div>
               <div class="detail-value" id="detail-morning">0分钟</div>
             </div>
-            <div class="detail-card">
+            <div class="detail-card stat-item-mini">
               <div class="detail-header">
                 <span class="detail-name">下午</span>
                 <span class="detail-target">目标 4小时</span>
               </div>
               <div class="detail-value" id="detail-afternoon">0分钟</div>
             </div>
-            <div class="detail-card">
+            <div class="detail-card stat-item-mini">
               <div class="detail-header">
                 <span class="detail-name">晚上</span>
                 <span class="detail-target">目标 3小时</span>
@@ -271,7 +307,8 @@
             </div>
             <div class="setting-select">
               <select id="voice-pack-select">
-                <option value="google-tts-en">Google TTS - 英文女声 (推荐)</option>
+                <option value="edge-tts-xiaoxiao">Edge TTS - 晓晓中文 (推荐)</option>
+                <option value="google-tts-en">Google TTS - 英文女声</option>
                 <option value="espeak-zh">eSpeak - 中文语音 (离线)</option>
               </select>
             </div>

@@ -1,4 +1,4 @@
-// ===== WorkRest 渲染进程 v1.3 =====
+// ===== WorkRest Mini 渲染进程 v2.0.1 =====
 
 const State = {
   WORKING: 'WORKING',
@@ -11,6 +11,7 @@ const State = {
 let currentState = State.STOPPED;
 let remainingSeconds = 0;
 let totalSeconds = 0;
+let officeMode = false;
 let todayStats = {
   date: new Date().toISOString().split('T')[0],
   morning: 0,
@@ -22,7 +23,8 @@ let settings = {
   workDuration: 45,
   breakDuration: 15,
   musicDir: '/home/steven/音乐/Music',
-  voicePack: 'google-tts-en'
+  voicePack: 'edge-tts-xiaoxiao',
+  officeMode: false
 };
 
 // DOM 元素
@@ -38,7 +40,7 @@ const elements = {
   statusText: document.querySelector('.status-text'),
   progressRingFill: document.querySelector('.progress-ring-fill'),
   
-  // 主按钮（整合后）
+  // 主按钮
   btnToggle: document.getElementById('btn-toggle'),
   toggleText: document.getElementById('toggle-text'),
   toggleIcon: document.getElementById('toggle-icon'),
@@ -50,6 +52,13 @@ const elements = {
   btnBackFromStats: document.getElementById('btn-back-from-stats'),
   btnQuitFromStats: document.getElementById('btn-quit-from-stats'),
   btnBackFromSettings: document.getElementById('btn-back-from-settings'),
+  
+  // v2.0.1: 窗口控制按钮
+  btnMinimize: document.getElementById('btn-minimize'),
+  btnClose: document.getElementById('btn-close'),
+  
+  // v2.0.1: 办公室模式按钮
+  btnOfficeMode: document.getElementById('btn-office-mode'),
   
   // 统计
   quickTotal: document.getElementById('quick-total'),
@@ -90,6 +99,8 @@ async function init() {
   setupEventListeners();
   setupIPCListeners();
   setupSettingsListeners();
+  setupWindowControls();
+  setupOfficeMode();
   
   // 获取初始状态
   const state = await window.electronAPI.getState();
@@ -97,6 +108,7 @@ async function init() {
   remainingSeconds = state.remaining;
   todayStats = state.stats;
   settings = state.settings || settings;
+  officeMode = settings.officeMode || false;
   
   // 更新 UI
   updateTimerDisplay(remainingSeconds);
@@ -105,9 +117,189 @@ async function init() {
   updateToggleButton();
   updateButtonStates();
   updateProgressRing(0, 0);
+  updateOfficeModeUI();
   
   // 更新设置显示
   updateSettingsUI();
+}
+
+// v2.0.1: 设置窗口控制
+function setupWindowControls() {
+  if (elements.btnMinimize) {
+    elements.btnMinimize.addEventListener('click', () => {
+      window.electronAPI.windowControl('minimize');
+    });
+  }
+  
+  if (elements.btnClose) {
+    elements.btnClose.addEventListener('click', () => {
+      window.electronAPI.windowControl('close');
+    });
+  }
+}
+
+// v2.0.1: 设置办公室模式
+function setupOfficeMode() {
+  if (!elements.btnOfficeMode) return;
+  
+  elements.btnOfficeMode.addEventListener('click', async () => {
+    // 播放绚丽的点击特效
+    playOfficeModeEffect();
+    
+    // 切换办公室模式
+    const result = await window.electronAPI.toggleOfficeMode();
+    officeMode = result.officeMode;
+    
+    // 更新 UI
+    updateOfficeModeUI();
+    
+    // 显示提示
+    if (officeMode) {
+      showToast('本应用将静音', 1000);
+    } else {
+      showToast('已关闭静音模式', 1000);
+    }
+  });
+}
+
+// v2.0.1: 办公室模式特效
+function playOfficeModeEffect() {
+  const btn = elements.btnOfficeMode;
+  if (!btn) return;
+  
+  // 添加点击动画类
+  btn.classList.add('office-mode-clicked');
+  
+  // 创建粒子特效
+  createParticleEffect(btn);
+  
+  // 移除动画类
+  setTimeout(() => {
+    btn.classList.remove('office-mode-clicked');
+  }, 600);
+}
+
+// v2.0.1: 创建粒子特效
+function createParticleEffect(element) {
+  const rect = element.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  
+  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'];
+  
+  for (let i = 0; i < 10; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'office-mode-particle';
+    particle.style.cssText = `
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      left: ${centerX}px;
+      top: ${centerY}px;
+      box-shadow: 0 0 8px ${colors[Math.floor(Math.random() * colors.length)]};
+    `;
+    document.body.appendChild(particle);
+    
+    // 随机方向
+    const angle = (i / 10) * Math.PI * 2;
+    const distance = 40 + Math.random() * 40;
+    const duration = 500 + Math.random() * 300;
+    
+    particle.animate([
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+      { transform: `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px) scale(0)`, opacity: 0 }
+    ], {
+      duration: duration,
+      easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+    }).onfinish = () => particle.remove();
+  }
+  
+  // 添加涟漪效果
+  const ripple = document.createElement('div');
+  ripple.className = 'office-mode-ripple';
+  ripple.style.cssText = `
+    position: fixed;
+    width: 16px;
+    height: 16px;
+    border: 2px solid ${officeMode ? '#4ecdc4' : '#ff6b6b'};
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    left: ${centerX - 8}px;
+    top: ${centerY - 8}px;
+  `;
+  document.body.appendChild(ripple);
+  
+  ripple.animate([
+    { transform: 'scale(1)', opacity: 1 },
+    { transform: 'scale(3)', opacity: 0 }
+  ], {
+    duration: 600,
+    easing: 'ease-out'
+  }).onfinish = () => ripple.remove();
+}
+
+// v2.0.1: 更新办公室模式 UI
+function updateOfficeModeUI() {
+  if (!elements.btnOfficeMode) return;
+  
+  if (officeMode) {
+    elements.btnOfficeMode.classList.add('active');
+    elements.btnOfficeMode.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M9 9v6a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"></path>
+      </svg>
+      <span>静音中</span>
+    `;
+  } else {
+    elements.btnOfficeMode.classList.remove('active');
+    elements.btnOfficeMode.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      </svg>
+      <span>静音</span>
+    `;
+  }
+}
+
+// v2.0.1: 显示 Toast 提示
+function showToast(message, duration = 1000) {
+  // 移除已有的 toast
+  const existingToast = document.querySelector('.office-mode-toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  const toast = document.createElement('div');
+  toast.className = 'office-mode-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // 动画进入
+  toast.animate([
+    { transform: 'translate(-50%, -20px)', opacity: 0 },
+    { transform: 'translate(-50%, 0)', opacity: 1 }
+  ], {
+    duration: 200,
+    fill: 'forwards'
+  });
+  
+  // 自动消失
+  setTimeout(() => {
+    toast.animate([
+      { transform: 'translate(-50%, 0)', opacity: 1 },
+      { transform: 'translate(-50%, -20px)', opacity: 0 }
+    ], {
+      duration: 200,
+      fill: 'forwards'
+    }).onfinish = () => toast.remove();
+  }, duration);
 }
 
 // 设置事件监听
@@ -127,7 +319,7 @@ function setupEventListeners() {
         updateButtonStates();
       }
     } else if (currentState === State.BREAKING) {
-      // 休息中点击，切换到工作（停止音乐）
+      // 休息中点击，切换到工作
       const result = await window.electronAPI.startWorking();
       if (result.success) {
         currentState = State.WORKING;
@@ -137,7 +329,6 @@ function setupEventListeners() {
         updateButtonStates();
       }
     }
-    // 工作中不能点击切换到休息，必须等时间结束或点击停止
   });
   
   // 停止按钮
@@ -279,6 +470,7 @@ function setupSettingsListeners() {
   // 保存设置
   elements.btnSaveSettings.addEventListener('click', async () => {
     animateButtonClick(elements.btnSaveSettings);
+    settings.officeMode = officeMode;
     await window.electronAPI.saveSettings(settings);
     showMainPage();
   });
@@ -290,8 +482,11 @@ function setupSettingsListeners() {
       workDuration: 45, 
       breakDuration: 15,
       musicDir: '/home/steven/音乐/Music',
-      voicePack: 'google-tts-en'
+      voicePack: 'edge-tts-xiaoxiao',
+      officeMode: false
     };
+    officeMode = false;
+    updateOfficeModeUI();
     updateSettingsUI();
   });
   
@@ -383,7 +578,7 @@ function updateSettingsUI() {
   
   // 语音包
   if (elements.voicePackSelect) {
-    elements.voicePackSelect.value = settings.voicePack || 'google-tts-en';
+    elements.voicePackSelect.value = settings.voicePack || 'edge-tts-xiaoxiao';
   }
 }
 
@@ -428,19 +623,16 @@ function updateToggleButton() {
   const text = elements.toggleText;
   
   if (currentState === State.WORKING) {
-    // 工作中，显示工作中（禁用点击）
     icon.innerHTML = '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="12" cy="12" r="3" fill="currentColor"/>';
     text.textContent = '工作中...';
     elements.btnToggle.classList.remove('btn-primary');
     elements.btnToggle.classList.add('btn-secondary');
   } else if (currentState === State.BREAKING) {
-    // 休息中，显示切换到工作
     icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
     text.textContent = '开始工作';
     elements.btnToggle.classList.remove('btn-secondary');
     elements.btnToggle.classList.add('btn-primary');
   } else {
-    // 停止状态，显示开始工作
     icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
     text.textContent = '开始工作';
     elements.btnToggle.classList.remove('btn-secondary');
@@ -454,10 +646,7 @@ function updateButtonStates() {
   const isBreaking = currentState === State.BREAKING;
   const isRunning = isWorking || isBreaking;
   
-  // 停止按钮：运行中可用
   elements.btnStop.disabled = !isRunning;
-  
-  // 切换按钮：工作中禁用（必须等时间结束或停止），休息中可用
   elements.btnToggle.disabled = isWorking;
 }
 
@@ -500,19 +689,56 @@ function showMainPage() {
   updateButtonStates();
 }
 
-// 更新可视化统计
+// v2.0.1: 更新可视化统计 - 新时间段规则
 function updateVisualizeStats() {
   const total = todayStats.morning + todayStats.afternoon + todayStats.evening;
   elements.totalDisplay.textContent = formatDuration(total);
-  
+
+  // v2.0.1: 时间段目标
+  const targetMorning = 180; // 3小时 - 09:00-12:00
+  const targetAfternoon = 240; // 4小时 - 12:00-18:00
+  const targetEvening = 180; // 3小时 - 18:00-23:00
+
   elements.detailMorning.textContent = formatDuration(todayStats.morning);
   elements.detailAfternoon.textContent = formatDuration(todayStats.afternoon);
   elements.detailEvening.textContent = formatDuration(todayStats.evening);
+
+  // v2.0.1: 固定柱状图位置
+  const morningWidth = Math.min(37.5, (todayStats.morning / targetMorning) * 37.5);
+  elements.barMorning.style.width = morningWidth + '%';
   
-  const maxTotal = 600;
-  elements.barMorning.style.width = Math.min(100, (todayStats.morning / maxTotal) * 100) + '%';
-  elements.barAfternoon.style.width = Math.min(100, (todayStats.afternoon / maxTotal) * 100) + '%';
-  elements.barEvening.style.width = Math.min(100, (todayStats.evening / maxTotal) * 100) + '%';
+  const afternoonWidth = Math.min(50, (todayStats.afternoon / targetAfternoon) * 50);
+  elements.barAfternoon.style.width = afternoonWidth + '%';
+  
+  const eveningWidth = Math.min(12.5, (todayStats.evening / targetEvening) * 12.5);
+  elements.barEvening.style.width = eveningWidth + '%';
+
+  // v2.0.1: 超时显示红色 + 火焰特效
+  const statItems = document.querySelectorAll('.stat-item-mini');
+
+  if (todayStats.morning > targetMorning) {
+    elements.barMorning.classList.add('overflow-red');
+    if (statItems[0]) statItems[0].classList.add('fire-effect-mini');
+  } else {
+    elements.barMorning.classList.remove('overflow-red');
+    if (statItems[0]) statItems[0].classList.remove('fire-effect-mini');
+  }
+
+  if (todayStats.afternoon > targetAfternoon) {
+    elements.barAfternoon.classList.add('overflow-red');
+    if (statItems[1]) statItems[1].classList.add('fire-effect-mini');
+  } else {
+    elements.barAfternoon.classList.remove('overflow-red');
+    if (statItems[1]) statItems[1].classList.remove('fire-effect-mini');
+  }
+
+  if (todayStats.evening > targetEvening) {
+    elements.barEvening.classList.add('overflow-red');
+    if (statItems[2]) statItems[2].classList.add('fire-effect-mini');
+  } else {
+    elements.barEvening.classList.remove('overflow-red');
+    if (statItems[2]) statItems[2].classList.remove('fire-effect-mini');
+  }
 }
 
 // 显示对话框

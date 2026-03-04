@@ -133,12 +133,134 @@ html, body {
   66% { transform: translate(-15px, 15px) scale(0.95); }
 }
 
+/* ===== v2.0.1: 标题栏和窗口控制 ===== */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--glass-border);
+  -webkit-app-region: drag;
+}
+
+.title-bar-left,
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-center {
+  flex: 1;
+  text-align: center;
+  -webkit-app-region: drag;
+}
+
+.app-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+/* v2.0.1: 窗口控制按钮 */
+.btn-window-control {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-window-control:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-primary);
+}
+
+.btn-window-control.btn-close:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* v2.0.1: 办公室模式按钮 */
+.btn-office-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.btn-office-mode:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-office-mode.active {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+  border-color: rgba(255, 107, 107, 0.5);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+.btn-office-mode.active svg {
+  stroke: white;
+}
+
+/* v2.0.1: 办公室模式点击特效 */
+.btn-office-mode.office-mode-clicked {
+  animation: office-mode-bounce 0.5s ease;
+}
+
+@keyframes office-mode-bounce {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(0.9); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(0.95); }
+}
+
+/* v2.0.1: Toast 提示 */
+.office-mode-toast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  pointer-events: none;
+}
+
 /* ===== 内容布局 ===== */
 .content {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 48px);
   padding: var(--spacing-md);
 }
 
@@ -424,7 +546,7 @@ html, body {
   color: var(--danger);
 }
 
-/* ===== 统计页面 v1.0 完整样式 ===== */
+/* ===== 统计页面 v2.0.1 样式 ===== */
 .stats-container {
   display: flex;
   flex-direction: column;
@@ -561,15 +683,35 @@ html, body {
 .progress-segment.morning-segment {
   background: linear-gradient(90deg, #FCD34D, #F59E0B);
   border-radius: 12px 0 0 12px;
+  max-width: 37.5%;
 }
 
 .progress-segment.afternoon-segment {
   background: linear-gradient(90deg, #60A5FA, #3B82F6);
+  max-width: 50%;
 }
 
 .progress-segment.evening-segment {
   background: linear-gradient(90deg, #A78BFA, #8B5CF6);
   border-radius: 0 12px 12px 0;
+  max-width: 12.5%;
+}
+
+/* v2.0.1: 溢出警告红条 */
+.progress-segment.overflow-red {
+  background: linear-gradient(90deg, #F87171, #EF4444) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+/* v2.0.1: 溢出警告火效卡片 */
+.fire-effect {
+  animation: fire-glow 2s infinite alternate;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+@keyframes fire-glow {
+  0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2), inset 0 0 5px rgba(239, 68, 68, 0.1); }
+  100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 15px rgba(239, 68, 68, 0.3); }
 }
 
 .segment-glow {

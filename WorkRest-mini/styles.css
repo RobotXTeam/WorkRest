@@ -1,3 +1,5 @@
+/* ===== WorkRest Mini Styles v2.0.1 ===== */
+
 /* ===== 基础样式 ===== */
 * {
   margin: 0;
@@ -133,12 +135,134 @@ html, body {
   66% { transform: translate(-15px, 15px) scale(0.95); }
 }
 
+/* ===== v2.0.1: 标题栏和窗口控制 ===== */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--glass-border);
+  -webkit-app-region: drag;
+}
+
+.title-bar-left,
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-center {
+  flex: 1;
+  text-align: center;
+  -webkit-app-region: drag;
+}
+
+.app-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+/* v2.0.1: 窗口控制按钮 */
+.btn-window-control {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-window-control:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-primary);
+}
+
+.btn-window-control.btn-close:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* v2.0.1: 办公室模式按钮 */
+.btn-office-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.btn-office-mode:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-office-mode.active {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+  border-color: rgba(255, 107, 107, 0.5);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+.btn-office-mode.active svg {
+  stroke: white;
+}
+
+/* v2.0.1: 办公室模式点击特效 */
+.btn-office-mode.office-mode-clicked {
+  animation: office-mode-bounce 0.5s ease;
+}
+
+@keyframes office-mode-bounce {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(0.9); }
+  50% { transform: scale(1.1); }
+  75% { transform: scale(0.95); }
+}
+
+/* v2.0.1: Toast 提示 */
+.office-mode-toast {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  pointer-events: none;
+}
+
 /* ===== 内容布局 ===== */
 .content {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 42px);
   padding: var(--spacing-md);
 }
 
@@ -424,7 +548,7 @@ html, body {
   color: var(--danger);
 }
 
-/* ===== 统计页面 ===== */
+/* ===== 统计页面 v2.0.1 ===== */
 .stats-body {
   flex: 1;
   display: flex;
@@ -476,6 +600,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 .timeline-bar {
@@ -484,6 +609,7 @@ html, body {
   background: rgba(241, 245, 249, 0.8);
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
 }
 
 .t-segment {
@@ -504,6 +630,41 @@ html, body {
 .evening-seg {
   background: linear-gradient(90deg, #A78BFA, #8B5CF6);
   border-radius: 0 6px 6px 0;
+}
+
+/* v2.0.1: 溢出警告红条 */
+.t-segment.overflow-red {
+  background: linear-gradient(90deg, #F87171, #EF4444) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+/* v2.0.1: 溢出警告火效卡片 */
+.fire-effect-mini {
+  animation: fire-glow-mini 2s infinite alternate;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+@keyframes fire-glow-mini {
+  0% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2), inset 0 0 4px rgba(239, 68, 68, 0.1); }
+  100% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.5), inset 0 0 12px rgba(239, 68, 68, 0.25); }
+}
+
+/* v2.0.1: 目标线 */
+.goal-lines-mini {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  pointer-events: none;
+}
+
+.goal-line-mini {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.5), rgba(99, 102, 241, 0.3));
 }
 
 .timeline-labels {
