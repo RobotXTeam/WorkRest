@@ -21,3 +21,6 @@ Thumbs.db
 *.json
 !package.json
 !package-lock.json
+
+# Release packages (large binary files)
+Release/*.deb
