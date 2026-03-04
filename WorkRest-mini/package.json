@@ -1,6 +1,6 @@
 {
   "name": "workrest-mini",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "久坐提醒与工作/休息管理应用 - Mini 紧凑版",
   "main": "main.js",
   "scripts": {
@@ -18,6 +18,7 @@
   ],
   "author": "WorkRest Team",
   "license": "MIT",
+  "homepage": "https://github.com/RobotXTeam/WorkRest",
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.0.0"
@@ -39,6 +40,9 @@
       "styles.css",
       "assets/**/*",
       "node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "assets/**/*"
     ],
     "linux": {
       "target": [

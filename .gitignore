@@ -1,0 +1,23 @@
+# Dependencies
+WorkRest-max/node_modules/
+WorkRest-mini/node_modules/
+
+# Build output
+WorkRest-max/dist/
+WorkRest-mini/dist/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Data files (runtime generated)
+*.json
+!package.json
+!package-lock.json

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -22,6 +22,35 @@ const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const MUSIC_DIR = '/home/steven/音乐/Music';
 const LOG_FILE = path.join(DATA_DIR, 'workrest-max.log');
+
+// 获取资源路径（兼容开发环境和打包环境）
+function getResourcePath(...paths) {
+  // 生产环境：从可执行文件路径推导
+  // process.execPath 指向 /opt/WorkRest Max/workrest-max
+  const execDir = path.dirname(process.execPath);
+  
+  // 先检查 app.asar.unpacked (asarUnpack 的文件在这里，用于外部程序访问)
+  const unpackedPath = path.join(execDir, 'resources', 'app.asar.unpacked', ...paths);
+  if (fs.existsSync(unpackedPath)) {
+    return unpackedPath;
+  }
+  
+  // 开发环境：使用 __dirname（开发时文件在当前目录）
+  const devPath = path.join(__dirname, ...paths);
+  // 检查是否是开发环境（__dirname 不包含 app.asar）
+  if (!__dirname.includes('app.asar') && fs.existsSync(devPath)) {
+    return devPath;
+  }
+  
+  // 备选：检查 app.asar 内部（Electron 内部访问）
+  const packedPath = path.join(execDir, 'resources', 'app.asar', ...paths);
+  if (fs.existsSync(packedPath)) {
+    return packedPath;
+  }
+  
+  // 最后返回 unpacked 路径（即使不存在，让调用者处理错误）
+  return unpackedPath;
+}
 
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) {
@@ -72,7 +101,7 @@ logInfo('========================================');
 const DEFAULT_SETTINGS = {
   workDuration: 45,      // 工作时长（分钟）
   breakDuration: 15,     // 休息时长（分钟）
-  musicDir: '/home/steven/音乐/Music',  // 音乐目录
+  musicDir: '',          // 音乐目录（空字符串表示使用默认音乐）
   voicePack: 'edge-tts-xiaoxiao',  // 默认使用晓晓中文语音
   officeMode: false      // 办公室模式（静音）
 };
@@ -127,9 +156,23 @@ let breakEndedAuto = false; // 休息结束自动标志
 
 // 创建主窗口 - v2.0.1 窗口控制
 function createWindow() {
+  // 使用 nativeImage 加载图标（Linux 需要多种尺寸）
+  const iconPath = getResourcePath('assets', 'clock.png');
+  let appIcon;
+  try {
+    appIcon = nativeImage.createFromPath(iconPath);
+    if (appIcon.isEmpty()) {
+      console.warn('Warning: Icon image is empty');
+      appIcon = null;
+    }
+  } catch (e) {
+    console.error('Error loading icon:', e.message);
+    appIcon = null;
+  }
+  
   mainWindow = new BrowserWindow({
     width: 900,
-    height: 700,
+    height: 740,
     minWidth: 800,
     minHeight: 600,
     title: 'WorkRest Max',
@@ -139,15 +182,19 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     show: false,
-    icon: path.join(__dirname, 'assets', 'clock.png'),
+    icon: appIcon || undefined,
     // 自定义窗口控制（为配合自定义标题栏）
-    titleBarStyle: 'hiddenInset',
-    frame: process.platform === 'darwin' // macOS 保留原生框架
+    titleBarStyle: 'hidden',
+    frame: false // Linux使用无边框窗口
   });
 
   mainWindow.loadFile('index.html');
 
   mainWindow.once('ready-to-show', () => {
+    // Linux: 再次设置图标确保显示
+    if (process.platform === 'linux' && appIcon) {
+      mainWindow.setIcon(appIcon);
+    }
     mainWindow.show();
   });
 
@@ -397,7 +444,14 @@ async function showMusicDirDialog() {
 
 // 扫描音乐文件
 function scanMusicFiles() {
-  const musicDir = settings.musicDir || '/home/steven/音乐/Music';
+  // 如果 musicDir 为空，使用默认音乐（不扫描用户目录）
+  if (!settings.musicDir || settings.musicDir.trim() === '') {
+    musicFiles = [];
+    logInfo('使用默认音乐: NIKON - I AM');
+    return;
+  }
+  
+  const musicDir = settings.musicDir;
   if (fs.existsSync(musicDir)) {
     const files = fs.readdirSync(musicDir);
     musicFiles = files
@@ -436,13 +490,18 @@ function playMusic() {
 
   // 使用默认音乐作为后备
   if (musicFiles.length === 0) {
-    const defaultMusic = path.join(__dirname, 'assets', 'nikon.mp3');
+    const defaultMusic = getResourcePath('assets', 'nikon.mp3');
+    logInfo(`查找默认音乐: ${defaultMusic}`);
     if (fs.existsSync(defaultMusic)) {
+      logInfo(`找到默认音乐，将循环播放`);
       filesToPlay = [defaultMusic];
       useLoop = true;
     } else {
+      logError(`默认音乐不存在: ${defaultMusic}`);
       return;
     }
+  } else {
+    logInfo(`使用用户音乐库: ${musicFiles.length} 首`);
   }
 
   const shuffled = useLoop ? filesToPlay : shuffleArray(filesToPlay);
@@ -599,12 +658,12 @@ function addWorkTime(minutes) {
     todayStats = { date: today, morning: 0, afternoon: 0, evening: 0 };
   }
   
-  // v2.0.1: 时间段边界调整为 09:00-12:00, 12:00-18:00, 18:00-23:00
+  // v2.0.1: 时间段边界调整为 09:00-12:00, 12:00-18:00, 18:00-24:00
   if (hour >= 9 && hour < 12) {
     todayStats.morning += minutes;
   } else if (hour >= 12 && hour < 18) {
     todayStats.afternoon += minutes;
-  } else if (hour >= 18 && hour < 23) {
+  } else if (hour >= 18 && hour < 24) {
     todayStats.evening += minutes;
   }
   
@@ -630,15 +689,26 @@ function playDing(count) {
     return;
   }
 
-  const dingPath = path.join(__dirname, 'assets', 'ding.wav');
-  if (fs.existsSync(dingPath)) {
-    // 根据系统选择播放命令
-    const isLinux = process.platform === 'linux';
-    const singleCmd = isLinux ? `paplay "${dingPath}" 2>/dev/null || aplay "${dingPath}" 2>/dev/null || mpv "${dingPath}" --no-video 2>/dev/null` : `afplay "${dingPath}"`;
-    const cmd = Array(count).fill(singleCmd).join(' ; sleep 0.5 ; ');
-
-    exec(cmd, () => {});
+  const dingPath = getResourcePath('assets', 'ding.wav');
+  logInfo(`播放提示音: ${dingPath}, 次数: ${count}`);
+  
+  if (!fs.existsSync(dingPath)) {
+    logError(`提示音文件不存在: ${dingPath}`);
+    return;
   }
+
+  // 使用 mpv 播放提示音（最可靠的方式）
+  const playNext = (n) => {
+    if (n <= 0) return;
+    
+    exec(`mpv "${dingPath}" --no-video --volume=80 2>/dev/null`, (err) => {
+      if (!err && n > 1) {
+        setTimeout(() => playNext(n - 1), 500);
+      }
+    });
+  };
+  
+  playNext(count);
 }
 
 // 计时器 tick
@@ -766,7 +836,14 @@ ipcMain.handle('get-state', () => {
 });
 
 ipcMain.handle('get-settings', () => {
-  return settings;
+  // 检查是否使用默认音乐
+  const hasCustomMusic = musicFiles.length > 0;
+  return {
+    ...settings,
+    useDefaultMusic: !hasCustomMusic,
+    musicCount: musicFiles.length,
+    musicDisplay: !settings.musicDir ? 'NIKON - I AM' : settings.musicDir
+  };
 });
 
 ipcMain.handle('save-settings', (event, newSettings) => {

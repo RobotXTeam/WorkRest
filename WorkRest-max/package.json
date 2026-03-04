@@ -1,6 +1,6 @@
 {
   "name": "workrest-max",
-  "version": "1.5.0",
+  "version": "2.0.1",
   "description": "久坐提醒与工作/休息管理应用",
   "main": "main.js",
   "scripts": {
@@ -18,6 +18,7 @@
   ],
   "author": "WorkRest",
   "license": "MIT",
+  "homepage": "https://github.com/RobotXTeam/WorkRest",
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.0.0"
@@ -40,6 +41,9 @@
       "assets/**/*",
       "node_modules/**/*"
     ],
+    "asarUnpack": [
+      "assets/**/*"
+    ],
     "linux": {
       "target": [
         {
@@ -54,10 +58,10 @@
       "synopsis": "久坐提醒与工作休息管理",
       "description": "WorkRest 是一个帮助用户管理工作和休息时间，预防久坐健康问题的桌面应用",
       "desktop": {
-        "Name": "WorkRest",
+        "Name": "WorkRest Max",
         "Comment": "久坐提醒与工作/休息管理应用",
         "Categories": "Utility;Productivity;",
-        "Icon": "workrest",
+        "Icon": "workrest-max",
         "StartupWMClass": "workrest"
       }
     }

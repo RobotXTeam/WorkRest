@@ -90,6 +90,7 @@ const elements = {
   btnResetSettings: document.getElementById('btn-reset-settings'),
   musicDirDisplay: document.getElementById('music-dir-display'),
   btnSelectMusicDir: document.getElementById('btn-select-music-dir'),
+  btnUseDefaultMusic: document.getElementById('btn-use-default-music'),
   voicePackSelect: document.getElementById('voice-pack-select'),
   btnTestVoice: document.getElementById('btn-test-voice'),
   
@@ -518,8 +519,16 @@ function setupSettingsListeners() {
     const result = await window.electronAPI.selectMusicDir();
     if (result.success) {
       settings.musicDir = result.dir;
+      settings.useDefaultMusic = false;
       updateSettingsUI();
     }
+  });
+  
+  // 使用默认音乐
+  elements.btnUseDefaultMusic.addEventListener('click', () => {
+    settings.musicDir = '';
+    settings.useDefaultMusic = true;
+    updateSettingsUI();
   });
   
   // 语音包选择
@@ -596,7 +605,12 @@ function updateSettingsUI() {
   
   // 音乐目录
   if (elements.musicDirDisplay) {
-    elements.musicDirDisplay.textContent = settings.musicDir || '/home/steven/音乐/Music';
+    elements.musicDirDisplay.textContent = settings.musicDisplay || 'NIKON - I AM';
+    if (settings.useDefaultMusic) {
+      elements.musicDirDisplay.classList.add('default-music');
+    } else {
+      elements.musicDirDisplay.classList.remove('default-music');
+    }
   }
   
   // 语音包
@@ -746,17 +760,18 @@ function updateVisualizeStats() {
   elements.afternoonPercent.textContent = Math.round(Math.min(100, (todayStats.afternoon / targetAfternoon) * 100)) + '%';
   elements.eveningPercent.textContent = Math.round(Math.min(100, (todayStats.evening / targetEvening) * 100)) + '%';
 
-  // v2.0.1: 固定柱状图位置 - 早上0-37.5%, 下午37.5%-87.5%, 晚上87.5%-100%
-  // 早上段 (0-3h)
-  const morningWidth = Math.min(37.5, (todayStats.morning / targetMorning) * 37.5);
+  // v2.0.1: 时间轴 09:00-24:00 共15小时
+  // 早上段 09:00-12:00 (3h, 20%), 下午段 12:00-18:00 (6h, 40%), 晚上段 18:00-24:00 (6h, 40%)
+  // 早上段 (0-3h) - 占时间轴的20%
+  const morningWidth = Math.min(20, (todayStats.morning / targetMorning) * 20);
   elements.barMorning.style.width = morningWidth + '%';
   
-  // 下午段 (3h-7h)
-  const afternoonWidth = Math.min(50, (todayStats.afternoon / targetAfternoon) * 50);
+  // 下午段 (3h-9h) - 占时间轴的40%
+  const afternoonWidth = Math.min(40, (todayStats.afternoon / targetAfternoon) * 40);
   elements.barAfternoon.style.width = afternoonWidth + '%';
   
-  // 晚上段 (7h-10h)
-  const eveningWidth = Math.min(12.5, (todayStats.evening / targetEvening) * 12.5);
+  // 晚上段 (9h-15h) - 占时间轴的40%
+  const eveningWidth = Math.min(40, (todayStats.evening / targetEvening) * 40);
   elements.barEvening.style.width = eveningWidth + '%';
 
   // v2.0.1: 超时显示红色 + 火焰特效

@@ -83,6 +83,7 @@ const elements = {
   btnResetSettings: document.getElementById('btn-reset-settings'),
   musicDirDisplay: document.getElementById('music-dir-display'),
   btnSelectMusicDir: document.getElementById('btn-select-music-dir'),
+  btnUseDefaultMusic: document.getElementById('btn-use-default-music'),
   voicePackSelect: document.getElementById('voice-pack-select'),
   btnTestVoice: document.getElementById('btn-test-voice'),
   
@@ -495,8 +496,16 @@ function setupSettingsListeners() {
     const result = await window.electronAPI.selectMusicDir();
     if (result.success) {
       settings.musicDir = result.dir;
+      settings.useDefaultMusic = false;
       updateSettingsUI();
     }
+  });
+  
+  // 使用默认音乐
+  elements.btnUseDefaultMusic.addEventListener('click', () => {
+    settings.musicDir = '';
+    settings.useDefaultMusic = true;
+    updateSettingsUI();
   });
   
   // 语音包选择
@@ -573,7 +582,12 @@ function updateSettingsUI() {
   
   // 音乐目录
   if (elements.musicDirDisplay) {
-    elements.musicDirDisplay.textContent = settings.musicDir || '/home/steven/音乐/Music';
+    elements.musicDirDisplay.textContent = settings.musicDisplay || 'NIKON - I AM';
+    if (settings.useDefaultMusic) {
+      elements.musicDirDisplay.classList.add('default-music');
+    } else {
+      elements.musicDirDisplay.classList.remove('default-music');
+    }
   }
   
   // 语音包
@@ -697,20 +711,21 @@ function updateVisualizeStats() {
   // v2.0.1: 时间段目标
   const targetMorning = 180; // 3小时 - 09:00-12:00
   const targetAfternoon = 240; // 4小时 - 12:00-18:00
-  const targetEvening = 180; // 3小时 - 18:00-23:00
+  const targetEvening = 240; // 4小时 - 18:00-24:00
 
   elements.detailMorning.textContent = formatDuration(todayStats.morning);
   elements.detailAfternoon.textContent = formatDuration(todayStats.afternoon);
   elements.detailEvening.textContent = formatDuration(todayStats.evening);
 
-  // v2.0.1: 固定柱状图位置
-  const morningWidth = Math.min(37.5, (todayStats.morning / targetMorning) * 37.5);
+  // v2.0.1: 固定柱状图位置 - 3:4:4 比例 (早上:下午:晚上目标时间比)
+  // 早上3h, 下午4h, 晚上4h (18:00-24:00)，总计11h
+  const morningWidth = Math.min(27.27, (todayStats.morning / targetMorning) * 27.27);
   elements.barMorning.style.width = morningWidth + '%';
   
-  const afternoonWidth = Math.min(50, (todayStats.afternoon / targetAfternoon) * 50);
+  const afternoonWidth = Math.min(36.36, (todayStats.afternoon / targetAfternoon) * 36.36);
   elements.barAfternoon.style.width = afternoonWidth + '%';
   
-  const eveningWidth = Math.min(12.5, (todayStats.evening / targetEvening) * 12.5);
+  const eveningWidth = Math.min(36.36, (todayStats.evening / targetEvening) * 36.36);
   elements.barEvening.style.width = eveningWidth + '%';
 
   // v2.0.1: 超时显示红色 + 火焰特效

@@ -263,7 +263,7 @@ html, body {
   flex-direction: column;
   width: 100%;
   height: calc(100% - 42px);
-  padding: var(--spacing-md);
+  padding: 4px var(--spacing-md) var(--spacing-md);
 }
 
 /* ===== 头部 ===== */
@@ -273,6 +273,19 @@ html, body {
   justify-content: center;
   padding: var(--spacing-xs) 0;
   margin-bottom: var(--spacing-xs);
+  -webkit-app-region: drag;
+}
+
+/* 二级页面header增加拖动区域 */
+.page .header {
+  padding: 12px 0;
+  margin-bottom: 8px;
+  -webkit-app-region: drag;
+}
+
+.header .btn,
+.header .btn-icon {
+  -webkit-app-region: no-drag;
 }
 
 .logo {
@@ -904,6 +917,22 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 8px 16px;
   font-size: 13px;
   width: 100%;
+}
+
+/* 音乐按钮容器 */
+.music-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.music-buttons .btn-select {
+  flex: 1;
+}
+
+/* 默认音乐高亮 */
+.default-music {
+  color: #5B8DEF;
+  font-weight: 500;
 }
 
 /* 语音选择 */

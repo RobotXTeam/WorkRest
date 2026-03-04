@@ -271,6 +271,19 @@ html, body {
   justify-content: center;
   padding: var(--spacing-xs) 0;
   margin-bottom: var(--spacing-xs);
+  -webkit-app-region: drag;
+}
+
+/* 二级页面header增加拖动区域 */
+.page .header {
+  padding: 12px 0;
+  margin-bottom: 8px;
+  -webkit-app-region: drag;
+}
+
+.header .btn,
+.header .btn-icon {
+  -webkit-app-region: no-drag;
 }
 
 .logo {
@@ -665,7 +678,7 @@ html, body {
 }
 
 .progress-bar {
-  display: flex;
+  display: block;
   height: 100%;
   border-radius: 12px;
   overflow: hidden;
@@ -676,25 +689,26 @@ html, body {
   height: 100%;
   width: 0%;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  position: absolute;
+  top: 0;
   min-width: 4px;
 }
 
 .progress-segment.morning-segment {
   background: linear-gradient(90deg, #FCD34D, #F59E0B);
   border-radius: 12px 0 0 12px;
-  max-width: 37.5%;
+  left: 0;
 }
 
 .progress-segment.afternoon-segment {
   background: linear-gradient(90deg, #60A5FA, #3B82F6);
-  max-width: 50%;
+  left: 20%;
 }
 
 .progress-segment.evening-segment {
   background: linear-gradient(90deg, #A78BFA, #8B5CF6);
   border-radius: 0 12px 12px 0;
-  max-width: 12.5%;
+  left: 60%;
 }
 
 /* v2.0.1: 溢出警告红条 */
@@ -759,12 +773,21 @@ html, body {
 
 /* 时间标签 */
 .time-labels {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
   margin-top: 12px;
   padding: 0 4px;
   font-size: 12px;
   color: var(--text-muted);
+  height: 20px;
+}
+
+.time-labels span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.time-labels span:first-child {
+  transform: translateX(0);
 }
 
 /* 分段统计 */
@@ -849,7 +872,7 @@ html, body {
 .footer-actions {
   display: flex;
   justify-content: center;
-  padding: 20px 0;
+  padding: 5px 0;
 }
 
 .btn-quit {
@@ -1037,6 +1060,22 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 8px 16px;
   font-size: 13px;
   width: 100%;
+}
+
+/* 音乐按钮容器 */
+.music-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.music-buttons .btn-select {
+  flex: 1;
+}
+
+/* 默认音乐高亮 */
+.default-music {
+  color: #5B8DEF;
+  font-weight: 500;
 }
 
 /* 语音选择 */
