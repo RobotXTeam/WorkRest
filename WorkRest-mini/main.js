@@ -169,10 +169,10 @@ function createWindow() {
   }
   
   mainWindow = new BrowserWindow({
-    width: 420,
-    height: 690,
-    minWidth: 380,
-    minHeight: 600,
+    width: 294,
+    height: 498,
+    minWidth: 266,
+    minHeight: 435,
     title: 'WorkRest Mini',
     webPreferences: {
       nodeIntegration: false,

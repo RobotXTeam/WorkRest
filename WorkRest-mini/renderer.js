@@ -193,8 +193,8 @@ function createParticleEffect(element) {
     particle.className = 'office-mode-particle';
     particle.style.cssText = `
       position: fixed;
-      width: 6px;
-      height: 6px;
+      width: 4px;
+      height: 4px;
       background: ${colors[Math.floor(Math.random() * colors.length)]};
       border-radius: 50%;
       pointer-events: none;
@@ -224,14 +224,14 @@ function createParticleEffect(element) {
   ripple.className = 'office-mode-ripple';
   ripple.style.cssText = `
     position: fixed;
-    width: 16px;
-    height: 16px;
+    width: 11px;
+    height: 11px;
     border: 2px solid ${officeMode ? '#4ecdc4' : '#ff6b6b'};
     border-radius: 50%;
     pointer-events: none;
     z-index: 9998;
-    left: ${centerX - 8}px;
-    top: ${centerY - 8}px;
+    left: ${centerX - 5}px;
+    top: ${centerY - 5}px;
   `;
   document.body.appendChild(ripple);
   
@@ -251,7 +251,7 @@ function updateOfficeModeUI() {
   if (officeMode) {
     elements.btnOfficeMode.classList.add('active');
     elements.btnOfficeMode.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="1" y1="1" x2="23" y2="23"></line>
         <path d="M9 9v6a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"></path>
       </svg>
@@ -260,7 +260,7 @@ function updateOfficeModeUI() {
   } else {
     elements.btnOfficeMode.classList.remove('active');
     elements.btnOfficeMode.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
       </svg>
