@@ -78,15 +78,27 @@
 cd ~/Downloads
 
 # 安装 WorkRest Max（推荐，功能完整）
-sudo apt install ./workrest-max_2.0.1_amd64.deb
+sudo apt install ./workrest-max_2.0.2_amd64.deb
 
 # 或安装 WorkRest Mini（紧凑版）
-sudo apt install ./workrest-mini_2.0.1_amd64.deb
+sudo apt install ./workrest-mini_2.0.2_amd64.deb
 
 # 也可以同时安装两个版本，它们会完全独立运行！
 ```
 
-### 依赖安装
+### Windows 安装
+
+```powershell
+# 安装版
+.\workrest-max_2.0.2_setup.exe
+.\workrest-mini_2.0.2_setup.exe
+
+# 或免安装便携版
+.\workrest-max_2.0.2_portable.exe
+.\workrest-mini_2.0.2_portable.exe
+```
+
+### Linux 依赖安装
 
 ```bash
 # 安装系统依赖 electron
@@ -173,18 +185,19 @@ pip install edge-tts
 
 ### 系统要求
 
-- **操作系统**: Ubuntu 20.04+ / 22.04+ (GNOME 桌面)
+- **操作系统**: Ubuntu 20.04+ / 22.04+ (GNOME 桌面) 或 Windows 10/11 x64
 - **Node.js**: v18+ (用于 electron)
-- **依赖**: espeak, mpv, libgtk-3-0
+- **Linux 依赖**: espeak, mpv, libgtk-3-0
 
 ### 从 Release 安装
 
 1. 访问 [Releases 页面](../../releases)
-2. 下载对应版本的 `.deb` 文件
-3. 双击安装或使用命令行：
+2. Linux 下载对应版本的 `.deb` 文件，Windows 下载 `setup.exe` 或 `portable.exe`
+3. Linux 可双击安装或使用命令行：
    ```bash
    sudo apt install ./workrest-*.deb
    ```
+4. Windows 直接运行安装包或便携版即可
 
 ### 从源码运行
 
@@ -278,6 +291,15 @@ WorkRest/
 ---
 
 ## 📝 更新日志
+
+### v2.0.2 (2026-03-21)
+
+- 🪟 **Windows 发布**: 新增 NSIS 安装包和便携版可执行文件
+- 🔊 **跨平台音频/TTS**: Windows 使用系统能力播放音乐和语音，Linux 保留现有依赖链
+- 🎵 **默认音乐逻辑修正**: 去掉硬编码个人目录，未选择音乐目录时统一回退到内置音乐
+- 🧭 **设置页修复**: 初始设置返回值补齐，默认音乐显示和重置逻辑一致
+- 🖥️ **启动稳定性优化**: 关闭 GPU 硬件加速，规避部分 Linux 图形环境下的启动崩溃
+- 📦 **打包修正**: `.deb` 补充运行依赖声明，Windows 安装包使用专用 `.ico` 图标
 
 ### v2.0.1 (2026-03-04)
 

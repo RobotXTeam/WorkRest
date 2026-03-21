@@ -1,6 +1,6 @@
 {
   "name": "workrest-max",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "久坐提醒与工作/休息管理应用",
   "main": "main.js",
   "scripts": {
@@ -64,6 +64,42 @@
         "Icon": "workrest-max",
         "StartupWMClass": "workrest"
       }
+    },
+    "deb": {
+      "depends": [
+        "mpv",
+        "espeak-ng | espeak"
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/clock.ico",
+      "publisherName": "WorkRest Team",
+      "legalTrademarks": "Copyright © 2024-2026 WorkRest Team"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WorkRest Max",
+      "artifactName": "workrest-max_${version}_setup.exe"
+    },
+    "portable": {
+      "artifactName": "workrest-max_${version}_portable.exe"
     }
   }
 }

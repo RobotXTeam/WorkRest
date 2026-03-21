@@ -2,10 +2,16 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeImage } = requir
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { exec, spawn } = require('child_process');
+const { spawn } = require('child_process');
+
+const APP_VERSION = app.getVersion();
+const AUDIO_FILE_PATTERN = /\.(mp3|flac|wav|ogg|m4a)$/i;
 
 // 确保每个版本的用户数据目录独立，防止锁冲突
 app.setPath('userData', path.join(app.getPath('appData'), 'workrest-mini'));
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 
 // 单实例锁
 const gotTheLock = app.requestSingleInstanceLock();
@@ -20,7 +26,6 @@ if (!gotTheLock) {
 const DATA_DIR = path.join(os.homedir(), '.workrest-mini');
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const MUSIC_DIR = '/home/steven/音乐/Music';
 const LOG_FILE = path.join(DATA_DIR, 'workrest-mini.log');
 
 // 获取资源路径（兼容开发环境和打包环境）
@@ -89,7 +94,7 @@ function logError(message, ...args) { logWrite('ERROR', message, ...args); }
 // 应用启动日志
 logInfo('========================================');
 logInfo('WorkRest Mini 应用启动');
-logInfo(`版本: 2.0.1`);
+logInfo(`版本: ${APP_VERSION}`);
 logInfo(`Electron: ${process.versions.electron}`);
 logInfo(`Node.js: ${process.versions.node}`);
 logInfo(`平台: ${process.platform} ${process.arch}`);
@@ -126,6 +131,24 @@ function saveSettings() {
   }
 }
 
+function getSettingsPayload() {
+  const useDefaultMusic = !settings.musicDir || settings.musicDir.trim() === '';
+  return {
+    ...settings,
+    useDefaultMusic,
+    musicCount: musicFiles.length,
+    musicDisplay: useDefaultMusic ? 'NIKON - I AM' : settings.musicDir
+  };
+}
+
+function getInitialMusicDir() {
+  try {
+    return app.getPath('music') || os.homedir();
+  } catch (error) {
+    return os.homedir();
+  }
+}
+
 // 状态定义
 const State = {
   WORKING: 'WORKING',
@@ -151,6 +174,7 @@ let musicPlayer = null;
 let musicFiles = [];
 let currentMusicIndex = -1;
 let breakEndedAuto = false; // 休息结束自动标志
+const transientAudioPlayers = new Set();
 
 // 创建主窗口 - v2.0.1 Mini 设计
 function createWindow() {
@@ -182,7 +206,7 @@ function createWindow() {
     show: false,
     icon: appIcon || undefined,
     titleBarStyle: 'hidden',
-    frame: false // Linux使用无边框窗口
+    frame: false
   });
 
   mainWindow.loadFile('index.html');
@@ -292,7 +316,7 @@ function createMenu() {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: '关于 WorkRest',
-              message: 'WorkRest Mini v2.0.1',
+              message: `WorkRest Mini v${APP_VERSION}`,
               detail: '久坐提醒与工作/休息管理应用\n\n本软件由 RobotX 团队 Steven 开发\n\n商业合作可联系 WeChat: StevenQ-001\n\n© 2026 RobotX Team. All rights reserved.'
             });
           }
@@ -374,7 +398,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  stopMusic();
+  stopAllAudio();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -382,7 +406,11 @@ app.on('window-all-closed', () => {
 
 // 检查音乐目录和文件
 function checkMusicAvailable() {
-  const musicDir = settings.musicDir || '/home/steven/音乐/Music';
+  const musicDir = settings.musicDir?.trim();
+
+  if (!musicDir) {
+    return { available: true, reason: '未配置自定义目录，使用默认音乐', useDefault: true };
+  }
 
   // 检查目录是否存在
   if (!fs.existsSync(musicDir)) {
@@ -391,7 +419,7 @@ function checkMusicAvailable() {
 
   // 检查是否有音乐文件
   const files = fs.readdirSync(musicDir);
-  const customMusicFiles = files.filter(f => /\.(mp3|flac|wav|ogg|m4a)$/i.test(f));
+  const customMusicFiles = files.filter(f => AUDIO_FILE_PATTERN.test(f));
 
   if (customMusicFiles.length === 0) {
     return { available: true, reason: '目录中没有音乐文件，使用默认音乐', dir: musicDir, useDefault: true };
@@ -408,7 +436,7 @@ async function showMusicDirDialog() {
     properties: ['openDirectory'],
     title: '选择音乐目录',
     message: '请选择一个包含音乐文件的目录（支持 mp3, flac, wav, ogg, m4a 格式）',
-    defaultPath: os.homedir()
+    defaultPath: settings.musicDir || getInitialMusicDir()
   });
   
   if (!result.canceled && result.filePaths.length > 0) {
@@ -416,7 +444,7 @@ async function showMusicDirDialog() {
     
     // 验证选择的目录
     const files = fs.readdirSync(selectedDir);
-    const hasMusic = files.some(f => /\.(mp3|flac|wav|ogg|m4a)$/i.test(f));
+    const hasMusic = files.some(f => AUDIO_FILE_PATTERN.test(f));
     
     if (hasMusic) {
       settings.musicDir = selectedDir;
@@ -452,7 +480,7 @@ function scanMusicFiles() {
   if (fs.existsSync(musicDir)) {
     const files = fs.readdirSync(musicDir);
     musicFiles = files
-      .filter(f => /\.(mp3|flac|wav|ogg|m4a)$/i.test(f))
+      .filter(f => AUDIO_FILE_PATTERN.test(f))
       .map(f => path.join(musicDir, f));
     console.log(`[WorkRest] 找到 ${musicFiles.length} 首音乐`);
     logInfo(`音乐库加载完成: ${musicFiles.length} 首音乐`);
@@ -470,6 +498,127 @@ function shuffleArray(array) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+function createSpawnOptions(extraEnv = {}) {
+  return {
+    detached: false,
+    stdio: 'ignore',
+    windowsHide: true,
+    env: { ...process.env, ...extraEnv }
+  };
+}
+
+function spawnPowerShell(script, extraEnv = {}) {
+  return spawn(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-WindowStyle',
+      'Hidden',
+      '-STA',
+      '-Command',
+      script
+    ],
+    createSpawnOptions(extraEnv)
+  );
+}
+
+function spawnShellScript(script, extraEnv = {}) {
+  if (process.platform === 'win32') {
+    return spawnPowerShell(script, extraEnv);
+  }
+
+  return spawn('/bin/sh', ['-lc', script], createSpawnOptions(extraEnv));
+}
+
+function trackTransientAudioPlayer(child) {
+  if (!child) {
+    return null;
+  }
+
+  transientAudioPlayers.add(child);
+  const cleanup = () => transientAudioPlayers.delete(child);
+  child.once('close', cleanup);
+  child.once('error', cleanup);
+  return child;
+}
+
+function stopChildProcess(child) {
+  if (!child || !child.pid) {
+    return;
+  }
+
+  try {
+    child.removeAllListeners('close');
+    child.removeAllListeners('error');
+  } catch (error) {}
+
+  try {
+    if (process.platform === 'win32') {
+      spawn(
+        'taskkill',
+        ['/pid', String(child.pid), '/t', '/f'],
+        createSpawnOptions()
+      );
+    } else {
+      child.kill('SIGTERM');
+      const killer = setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch (error) {}
+      }, 1000);
+      if (typeof killer.unref === 'function') {
+        killer.unref();
+      }
+    }
+  } catch (error) {}
+}
+
+function stopTransientAudio() {
+  for (const child of [...transientAudioPlayers]) {
+    stopChildProcess(child);
+  }
+  transientAudioPlayers.clear();
+}
+
+function stopAllAudio() {
+  stopMusic();
+  stopTransientAudio();
+}
+
+function spawnAudioPlayer(filePath, { loop = false, volume = 80 } = {}) {
+  if (process.platform === 'win32') {
+    const script = [
+      "$ErrorActionPreference = 'Stop'",
+      '$player = New-Object -ComObject WMPlayer.OCX.7',
+      '$player.settings.volume = [int]$env:WORKREST_VOLUME',
+      '$player.settings.autoStart = $false',
+      "$player.settings.setMode('loop', $env:WORKREST_LOOP -eq '1')",
+      '$player.URL = $env:WORKREST_MEDIA_FILE',
+      'Start-Sleep -Milliseconds 250',
+      '$player.controls.play()',
+      'if ($env:WORKREST_LOOP -eq \'1\') { while ($true) { Start-Sleep -Seconds 3600 } }',
+      '$deadline = [DateTime]::UtcNow.AddMinutes(30)',
+      'while ([DateTime]::UtcNow -lt $deadline -and $player.playState -ne 8 -and $player.playState -ne 1) { Start-Sleep -Milliseconds 250 }',
+      '$player.controls.stop()'
+    ].join('; ');
+
+    return spawnPowerShell(script, {
+      WORKREST_MEDIA_FILE: filePath,
+      WORKREST_LOOP: loop ? '1' : '0',
+      WORKREST_VOLUME: String(volume)
+    });
+  }
+
+  return spawn(
+    'mpv',
+    ['--no-video', `--volume=${volume}`, loop ? '--loop-file=yes' : '--loop-file=no', filePath],
+    createSpawnOptions()
+  );
 }
 
 // 播放音乐（办公室模式下静音）
@@ -514,19 +663,11 @@ function playMusic() {
     }
 
     const file = shuffled[currentMusicIndex++];
-
-    const mpvArgs = ['--no-video'];
-    if (useLoop) {
-        mpvArgs.push('--loop-file=yes');
-    } else {
-        mpvArgs.push('--loop-file=no');
+    musicPlayer = spawnAudioPlayer(file, { loop: useLoop, volume: 80 });
+    if (!musicPlayer) {
+      logError(`无法启动音频播放器: ${file}`);
+      return;
     }
-    mpvArgs.push(file);
-
-    musicPlayer = spawn('mpv', mpvArgs, {
-      detached: false,
-      stdio: 'ignore'
-    });
 
     musicPlayer.on('close', () => {
       if (currentState === State.BREAKING) {
@@ -534,7 +675,8 @@ function playMusic() {
       }
     });
 
-    musicPlayer.on('error', () => {
+    musicPlayer.on('error', (error) => {
+      logError(`音频播放器启动失败: ${file}`, error.message);
       if (currentState === State.BREAKING) {
         playNext();
       }
@@ -547,14 +689,10 @@ function playMusic() {
 // 停止音乐
 function stopMusic() {
   if (musicPlayer) {
-    try {
-      musicPlayer.removeAllListeners('close');
-      musicPlayer.removeAllListeners('error');
-      musicPlayer.kill('SIGTERM');
-    } catch (e) {}
+    stopChildProcess(musicPlayer);
     musicPlayer = null;
   }
-  exec('pkill -f "mpv --no-video"', () => {});
+  currentMusicIndex = -1;
 }
 
 // TTS 语音播报（办公室模式下静音）
@@ -567,51 +705,98 @@ function speak(text) {
 
   const voicePack = settings.voicePack || 'edge-tts-xiaoxiao';
 
+  if (process.platform === 'win32') {
+    const isEnglishVoice = voicePack === 'google-tts-en';
+    const script = [
+      "$ErrorActionPreference = 'SilentlyContinue'",
+      'Add-Type -AssemblyName System.Speech',
+      '$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer',
+      '$voices = $synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo }',
+      '$voice = $voices | Where-Object { $_.Name -match $env:WORKREST_VOICE_NAME_MATCH -or $_.Culture.Name -match $env:WORKREST_VOICE_CULTURE_MATCH } | Select-Object -First 1',
+      'if ($voice) { $synth.SelectVoice($voice.Name) }',
+      '$synth.Volume = 100',
+      '$synth.Speak($env:WORKREST_TTS_TEXT)'
+    ].join('; ');
+
+    trackTransientAudioPlayer(
+      spawnPowerShell(script, {
+        WORKREST_TTS_TEXT: text,
+        WORKREST_VOICE_NAME_MATCH: isEnglishVoice ? 'en|zira|david|english' : 'zh|huihui|xiaoxiao|chinese|mandarin|xiaoyi',
+        WORKREST_VOICE_CULTURE_MATCH: isEnglishVoice ? '^en' : '^zh'
+      })
+    );
+    return;
+  }
+
   if (voicePack === 'edge-tts-xiaoxiao') {
-    // Edge TTS - 晓晓中文女声（小爱同学风格）
-    const edgeCmd = `edge-tts --voice zh-CN-XiaoxiaoNeural --text "${text}" --write-media "${path.join(DATA_DIR, 'tts_tmp.mp3')}" && mpv "${path.join(DATA_DIR, 'tts_tmp.mp3')}" --no-video --volume=80`;
-    exec(edgeCmd, (error) => {
-      if (error) {
-        console.log('edge-tts failed, trying fallback');
+    const tmpFile = path.join(DATA_DIR, 'tts_tmp.mp3');
+    const edgeScript = [
+      'edge-tts --voice zh-CN-XiaoxiaoNeural --text "$WORKREST_TTS_TEXT" --write-media "$WORKREST_TTS_FILE"',
+      'mpv "$WORKREST_TTS_FILE" --no-video --volume=80'
+    ].join(' && ');
+    const child = spawnShellScript(edgeScript, {
+      WORKREST_TTS_TEXT: text,
+      WORKREST_TTS_FILE: tmpFile
+    });
+    if (!child) {
+      fallbackSpeak(text);
+      return;
+    }
+    trackTransientAudioPlayer(child);
+    child.once('close', (code) => {
+      if (code !== 0) {
+        logWarn('edge-tts 执行失败，回退到系统语音');
         fallbackSpeak(text);
       }
-      try { fs.unlinkSync(path.join(DATA_DIR, 'tts_tmp.mp3')); } catch(e) {}
+      try { fs.unlinkSync(tmpFile); } catch (error) {}
     });
   } else if (voicePack === 'google-tts-en') {
-    // Google Translate TTS - 英文女声（需要网络）
     const texts = {
       '准备休息': 'Time to take a break',
       '休息结束，准备开始工作': 'Break is over, time to work',
       '测试语音播报': 'Voice test'
     };
     const enText = texts[text] || text;
-
-    // 使用 Google Translate TTS API (通过 curl)
     const tmpFile = path.join(DATA_DIR, 'tts_tmp.mp3');
-    const downloadCmd = `curl -s -L "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(enText)}" -o "${tmpFile}" 2>/dev/null`;
-
-    exec(downloadCmd, (error) => {
-      if (!error && fs.existsSync(tmpFile)) {
-        // 播放下载的音频
-        exec(`mpv "${tmpFile}" --no-video --volume=80 2>/dev/null || mpv "${tmpFile}" --no-video --volume=80`, () => {
-          // 播放完成后删除临时文件
-          try { fs.unlinkSync(tmpFile); } catch (e) {}
-        });
-      } else {
-        // 失败时回退到 espeak
+    const googleScript = [
+      'curl -s -L "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=$WORKREST_TTS_QUERY" -o "$WORKREST_TTS_FILE"',
+      'mpv "$WORKREST_TTS_FILE" --no-video --volume=80'
+    ].join(' && ');
+    const child = spawnShellScript(googleScript, {
+      WORKREST_TTS_FILE: tmpFile,
+      WORKREST_TTS_QUERY: encodeURIComponent(enText)
+    });
+    if (!child) {
+      fallbackSpeak(text);
+      return;
+    }
+    trackTransientAudioPlayer(child);
+    child.once('close', (code) => {
+      if (code !== 0 || !fs.existsSync(tmpFile)) {
         fallbackSpeak(text);
       }
+      try { fs.unlinkSync(tmpFile); } catch (error) {}
     });
   } else {
-    // 默认使用 espeak 中文
     fallbackSpeak(text);
   }
 }
 
 // 备选语音（espeak 中文）
 function fallbackSpeak(text) {
-  const cmd = `which espeak-ng >/dev/null 2>&1 && espeak-ng -v zh "${text}" 2>/dev/null || espeak -v zh "${text}" 2>/dev/null`;
-  exec(cmd, () => {});
+  const script = [
+    'if command -v espeak-ng >/dev/null 2>&1; then',
+    '  espeak-ng -v zh "$WORKREST_TTS_TEXT" >/dev/null 2>&1',
+    'elif command -v espeak >/dev/null 2>&1; then',
+    '  espeak -v zh "$WORKREST_TTS_TEXT" >/dev/null 2>&1',
+    'fi'
+  ].join(' ');
+
+  trackTransientAudioPlayer(
+    spawnShellScript(script, {
+      WORKREST_TTS_TEXT: text
+    })
+  );
 }
 
 // 加载今日统计
@@ -697,11 +882,21 @@ function playDing(count) {
   // 使用 mpv 播放提示音（最可靠的方式）
   const playNext = (n) => {
     if (n <= 0) return;
-    
-    exec(`mpv "${dingPath}" --no-video --volume=80 2>/dev/null`, (err) => {
-      if (!err && n > 1) {
-        setTimeout(() => playNext(n - 1), 500);
+
+    const dingPlayer = spawnAudioPlayer(dingPath, { volume: 80 });
+    if (!dingPlayer) {
+      logError('提示音播放器启动失败');
+      return;
+    }
+
+    trackTransientAudioPlayer(dingPlayer);
+    dingPlayer.once('close', () => {
+      if (n > 1) {
+        setTimeout(() => playNext(n - 1), 350);
       }
+    });
+    dingPlayer.once('error', (error) => {
+      logError('提示音播放失败', error.message);
     });
   };
   
@@ -828,19 +1023,12 @@ ipcMain.handle('get-state', () => {
     remaining: remainingSeconds,
     formatted: formatTime(remainingSeconds),
     stats: todayStats,
-    settings: settings
+    settings: getSettingsPayload()
   };
 });
 
 ipcMain.handle('get-settings', () => {
-  // 检查是否使用默认音乐
-  const hasCustomMusic = musicFiles.length > 0;
-  return {
-    ...settings,
-    useDefaultMusic: !hasCustomMusic,
-    musicCount: musicFiles.length,
-    musicDisplay: !settings.musicDir ? 'NIKON - I AM' : settings.musicDir
-  };
+  return getSettingsPayload();
 });
 
 ipcMain.handle('save-settings', (event, newSettings) => {
@@ -848,7 +1036,7 @@ ipcMain.handle('save-settings', (event, newSettings) => {
   saveSettings();
   // 重新扫描音乐（如果目录变了）
   scanMusicFiles();
-  return { success: true, settings };
+  return { success: true, settings: getSettingsPayload() };
 });
 
 ipcMain.handle('select-music-dir', async () => {
@@ -856,7 +1044,7 @@ ipcMain.handle('select-music-dir', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
       title: '选择音乐目录',
-      defaultPath: settings.musicDir || os.homedir()
+      defaultPath: settings.musicDir || getInitialMusicDir()
     });
     if (!result.canceled && result.filePaths.length > 0) {
       return { success: true, dir: result.filePaths[0] };
@@ -938,7 +1126,7 @@ ipcMain.handle('stop', () => {
     timerInterval = null;
   }
   
-  stopMusic();
+  stopAllAudio();
   remainingSeconds = 0;
   
   return { success: true, state: currentState };
@@ -962,7 +1150,7 @@ ipcMain.handle('get-stats', () => {
 });
 
 ipcMain.handle('quit-app', () => {
-  stopMusic();
+  stopAllAudio();
   app.quit();
 });
 
@@ -987,9 +1175,9 @@ ipcMain.handle('toggle-office-mode', () => {
   settings.officeMode = !settings.officeMode;
   saveSettings();
   
-  // 如果切换到办公室模式，立即停止当前播放的音乐
+  // 如果切换到办公室模式，立即停止所有声音
   if (settings.officeMode) {
-    stopMusic();
+    stopAllAudio();
   }
   
   logInfo(`办公室模式已${settings.officeMode ? '开启' : '关闭'}`);

@@ -1,4 +1,4 @@
-// ===== WorkRest Mini 渲染进程 v2.0.1 =====
+// ===== WorkRest Mini 渲染进程 v2.0.2 =====
 
 const State = {
   WORKING: 'WORKING',
@@ -22,7 +22,9 @@ let todayStats = {
 let settings = {
   workDuration: 45,
   breakDuration: 15,
-  musicDir: '/home/steven/音乐/Music',
+  musicDir: '',
+  musicDisplay: 'NIKON - I AM',
+  useDefaultMusic: true,
   voicePack: 'edge-tts-xiaoxiao',
   officeMode: false
 };
@@ -482,7 +484,9 @@ function setupSettingsListeners() {
     settings = { 
       workDuration: 45, 
       breakDuration: 15,
-      musicDir: '/home/steven/音乐/Music',
+      musicDir: '',
+      musicDisplay: 'NIKON - I AM',
+      useDefaultMusic: true,
       voicePack: 'edge-tts-xiaoxiao',
       officeMode: false
     };
